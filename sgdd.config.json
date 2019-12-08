@@ -5,22 +5,30 @@
   },
   "cssPreProcessor": {
     "config": {
-      "outputStyle": "expanded",
       "eyeglass": {
         "enableImportOnce": false
-      }
+      },
+      "indent_type": "space",
+      "outputStyle": "expanded",
+      "source_comments": true
     },
+    "lintConfig": "./sass-lint.yaml",
     "type": "sass"
   },
   "dest": {
-    "css": "./style-guide/css",
-    "js": "./style-guide/js",
-    "styleGuide": "./style-guide"
+    "css": "./style-guide/css/",
+    "images": "./style-guide/images/",
+    "js": "./style-guide/js/",
+    "styleGuide": "./style-guide/",
+    "vendor": "./style-guide/vendor/"
   },
   "src": {
-    "css": "./src/sass",
-    "js": "./src/js"
+    "css": "./src/sass/",
+    "images": "./src/images/",
+    "js": "./src/js/",
+    "vendor": "./src/vendor/"
   },
   "kssConfig": "./kss-config.json",
+  "postCssConfig": "",
   "useTypeScript": false
 }

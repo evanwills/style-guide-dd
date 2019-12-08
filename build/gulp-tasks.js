@@ -1,179 +1,279 @@
 'use strict'
+/**
+ * This Gulp file runs in two modes:
+ *  - "prod" (Production)
+ *  - "dev" (default - Development)
+ *
+ * To run this task in Production mode, you pass mode=prod as a
+ * parameter after "gulp"
+ *
+ * Some useful links to help with understanding this file:
+ * * https://www.webstoemp.com/blog/switching-to-gulp4/
+ */
 
+const { series, parallel, dest, src, watch } = require('gulp')
+const childProcess = require('child_process')
 const browserSync = require('browser-sync').create()
-const concat = require('concat')
+const plumber = require('gulp-plumber')
 const del = require('del')
-const { dest, src, watch } = require('gulp')
-// const kssConfig = require('./build/kss-config.json')
+// const concat = require('concat') // not needed until we start prod stuff
 const sassLint = require('gulp-sass-lint')
 const sourcemaps = require('gulp-sourcemaps')
-const uglify = require('gulp-uglify')
+// const uglify = require('gulp-uglify') // not needed until we start prod stuff
 
+// using let because we attache extra stuff to the sass object
+// in a moment
 let sass = require('gulp-sass')
+
+const { cliArgs } = require('./build/getCliArgs')
+
 sass.compiler = require('node-sass')
 
 /**
- * a Gulp task for compiling Sass files to CSS and creating source maps
- *
- * @param {string} srcPath path to sass files to be linted
- * @param {string} configFile path to sass-lint config YAML file
- * @param {bool} failOnError whether or not sasslint should fail on error
- *
- * @returns {function} can be used as a gulp task
+ * @var {object} config configuration stuff needed for everything
+ *                    to follow
  */
-// const compileSass = (srcPath, destPath, sassOpts) => (cb) => {
-const compileSass = (srcPath, destPath, sassOpts) => () => {
-  console.log('inside compileSass()')
-  // console.log('typeof cb:', typeof cb)
-  // console.log('cb:', cb)
-  src(`${srcPath}**/*.scss`)
-    .pipe(sourcemaps.init())
-    .pipe(sass(sassOpts).on('error', sass.logError))
-    .pipe(sourcemaps.write())
-    .pipe(dest(destPath))
-  console.log('completed compileSass()')
-  // cb()
-}
+const config = require('./sgdd.config.json')
 
 /**
- * a Gulp task for linting Sass files
- *
- * @param {string} srcPath path to sass files to be linted
- * @param {string} configFile path to sass-lint config YAML file
- * @param {bool} failOnError whether or not sasslint should fail on error
- *
- * @returns {function} can be used as a gulp task
+ * @var {string} mode mode gulp task is to run in
  */
-const lintSassFiles = (srcPath, configFile, failOnError) => {
-  console.log('inside lintSassFiles()')
-  if (typeof failOnError === 'boolean' && failOnError === true) {
-    // return (cb) => {
-    return () => {
-      console.log('inside lintSassFiles() (failOnError)')
-      // console.log('typeof cb:', typeof cb)
-      // console.log('cb:', cb)
-      src(`${srcPath}**/*.scss`)
-        .pipe(sassLint({ configFile: configFile }))
-        .pipe(sassLint.format())
-        .pipe(sassLint.failOnError())
-      console.log('completed lintSassFiles()')
-      // cb()
-    }
-  } else {
-    // return (cb) => {
-    return () => {
-      console.log('inside lintSassFiles() (ignore errors)')
-      // console.log('typeof cb:', typeof cb)
-      // console.log('cb:', cb)
-      src(`${srcPath}**/*.scss`)
-        .pipe(sassLint({ configFile: configFile }))
-        .pipe(sassLint.format())
-      console.log('completed lintSassFiles()')
-      // cb()
-    }
+const mode = cliArgs('mode', 'dev')
+
+/**
+ * @var {array} list of files to be deleted each time gulp is run.
+ */
+const filesToDelete = [
+  `${config.paths.dest}**/*.html`,
+  `${config.paths.dest}css/*.css`,
+  `${config.paths.dest}js/*.js`,
+  `${config.paths.dest}img/*.*`
+]
+
+/**
+ * @var {object} sassOptionsDev options to get Sass to compile
+ *                              correctly for development mode
+ *                              (and to build a CSS file that KSS can
+ *                               use to compile the style guide.)
+ */
+const sassOptionsDev = {
+  eyeglass: {
+    enableImportOnce: false
+  },
+  indent_type: 'space',
+  outputStyle: 'expanded',
+  source_comments: true
+}
+
+// ==============================================
+// START: end user runtime documentation
+
+console.log('')
+console.log('Running gulp in "' + mode + '" mode (--mode=' + mode + ')')
+console.log('')
+console.log('To run this task in Production mode, you need to pass "--mode=prod" as')
+console.log('a parameter after "gulp"')
+console.log('e.g. $ gulp --mode=prod or')
+console.log('     $ gulp --mode=dev')
+console.log('     $ gulp --mode=test // testing new gulp functionality')
+console.log('')
+
+//  END:  end user runtime documentation
+// ==============================================
+
+// Start doin' tha do
+
+if (mode === 'prod') {
+  // ============================================
+  // START: production mode
+
+  // Now we're gettin' serious
+  // This is all the production ready build and deployment stuff
+
+  //  END:  production mode
+  // ============================================
+} else if (mode === 'test') {
+  // ============================================
+  // START: test mode
+
+  // This is just for experimental stuff
+  // No watching and no browserSync here
+
+  /**
+   * a Gulp task for compiling Sass files to CSS and creating source maps
+   */
+  const compileKss = (gulpCallBack) => {
+    const kss = childProcess.spawn(
+      'node_modules/kss/bin/kss',
+      [
+        '--config',
+        config.kssConfig
+      ]
+    )
+    kss.on('exit', (code) => {
+      const errorMsg = (code === 0) ? null : 'ERROR: node-kss process exited with code: ' + code
+      gulpCallBack(errorMsg)
+    })
+    return kss
   }
-}
 
-/**
- * Concatinate and minify JS files into a single file.
- *
- * @param {array}  jsFiles  list of JS files (including path) to be
- *                          concatinated and uglified
- * @param {string} destPath path to where outputted file is to be
- *                          saved
- *
- * @returns {function} can be used as a gulp task
- */
-// const copyJS = (jsFiles, destPath) => (cb) => {
-const copyJS = (jsFiles, destPath) => () => {
-  console.log('inside copyJS()')
-  src(jsFiles)
-    .pipe(dest(destPath))
-  console.log('completed copyJS()')
-  // cb()
-}
+  exports.default = series(compileKss)
+  // exports.default = series(compileSass, compileKss)
 
-/**
- * Concatinate and minify JS files into a single file.
- *
- * @param {array}  jsFiles  list of JS files (including path) to be
- *                          concatinated and uglified
- * @param {string} outputFileName name of concatinated file to be
- *                          outputted
- * @param {string} destPath path to where outputted file is to be
- *                          saved
- *
- * @returns {function} can be used as a gulp task
- */
-// const prepJS = (jsFiles, outputFileName, destPath) => (cb) => {
-const prepJS = (jsFiles, outputFileName, destPath) => () => {
-  console.log('inside prepJS()')
-  // console.log('typeof cb:', typeof cb)
-  // console.log('cb:', cb)
-  src(jsFiles)
-    .pipe(concat(outputFileName))
-    .pipe(uglify())
-    .pipe(dest(destPath))
-  console.log('completed prepJS()')
-  // cb()
-}
+  //  END:  test mode
+  // ============================================
+} else {
+  // ============================================
+  // START: development mode
 
-/**
- * creates a set of watchers for different paths so Scss, JS &
- * @param {array} lookAt list of path/function objects to be watched
- *                       and executed
- * @param {string} destPath path to destination folder to be watched
- *                      so browserSync can be reloaded
- *
- * @returns {function} can be used as a gulp task
- */
-// const watcher = (lookAt, destPath) => (cb) => {
-const watcher = (lookAt, destPath) => () => {
-  console.log('inside watcher()')
-  for (let a = 0; a < lookAt.length; a += 1) {
-    console.log(`watching: (${a}) ${lookAt[a].path}`)
-    watch(lookAt[a].path).on('change', lookAt[a].func)
+  // This is for normal day-to-day development stuff
+  //
+  // This makes life easier by setting up watchers and auto compiling
+  // all the things
+  //
+  // It runs runs the following steps:
+  // 1. sets up browser-sync to watch the style-guide directory for
+  // changes
+  // 2. watches the front-end/sass directory for changes and builds
+  //    appropriate CSS files (with comments) that can be used by KSS
+  //    to build the style-guide directory
+  // 2.1. runs sass-lint with every build and outputs errors & warnings
+  // 3. watches the front-end/js directory and copies updated files to
+  //    the appropriate place in style-guide/js/
+  // 3.1. watches front-end/js files using standardJS and outputs
+  //      errors and warnings
+  // 4. watches the front-end/vendor directory and copies updated files
+  //    to the appropriate place in style-guide/vendor/
+  //
+  // This script assumes that the developer has both sass-lint and
+  // "Standard JS" installed in their IDE and that the developer is
+  // dealing with errors, warnings and notices generated by both
+  // sass-lint and standard JS as they arise.
+
+  /**
+   * a Gulp task for compiling Sass files to CSS and creating source maps
+   */
+  const compileSass = () => {
+    return src(`${config.src.css}**/*.scss`)
+      .pipe(plumber())
+      .pipe(sourcemaps.init())
+      .pipe(sass(sassOptionsDev).on('error', sass.logError))
+      .pipe(sourcemaps.write())
+      .pipe(dest(config.dest.css + 'css/'))
   }
-  watch(`${destPath}**/*.css`).on('change', browserSync.reload)
-  watch(`${destPath}**/*.css`).on('change', browserSync.reload)
-  watch(`${destPath}**/*.html`).on('change', browserSync.reload)
-  console.log('completed watcher()')
-  // cb()
-}
 
-/**
- * Initialise browserSync
- *
- * @param {string} destPath path to digitial standards site.
- */
-// const bsServer = (destPath) => (cb) => {
-const bsServer = (destPath) => () => {
-  console.log('inside bsServer()')
-  browserSync.init({
-    notify: false,
-    open: false,
-    server: {
-      baseDir: destPath
-    }
-  })
-  // cb()
-}
+  /**
+   * a Gulp task for linting Sass files
+   */
+  const lintSassFiles = (updatedFile) => {
+    // const _updatedFile = updatedFile.replace(/.*?\\/g, '**/')
+    // return src(_updatedFile)
+    src(`${config.src.css}**/*.scss`)
+      .pipe(plumber())
+      .pipe(sassLint({ configFile: config.cssPreProcessor.lintConfig }))
+      .pipe(sassLint.format())
+  }
 
-/**
- * delete all the files in the list supplied.
- *
- * @param {array} paths list of files to be deleted
- *
- * @returns {function} async function
- */
-// const deleteAll = (paths) => async (cb) => {
-const deleteAll = (paths) => async () => {
-  console.log('inside deleteAll()')
-  // console.log('typeof cb:', typeof cb)
-  // console.log('cb:', cb)
-  await del(paths)
-  console.log('completed deleteAll()')
-  // cb()
-}
+  /**
+   * a Gulp task for compiling the digital standards style-guide from
+   * CSS compiled from Sass
+   */
+  const compileKss = () => {
+    console.log('config.config.kss:', config.kssConfig)
+    childProcess.spawn(
+      './node_modules/kss/bin/kss',
+      [
+        '--config',
+        config.kssConfig
+      ]
+    )
+  }
 
-module.exports = { bsServer, compileSass, copyJS, deleteAll, lintSassFiles, prepJS, watcher }
+  /**
+   * Concatinate and minify JS files into a single file.
+   */
+  const copyJS = () => {
+    return src(`${config.src.js}**/*.js`)
+      .pipe(plumber())
+      .pipe(dest(`${config.dest.js}`))
+  }
+
+  /**
+   * Concatinate and minify JS files into a single file.
+   */
+  const copyImages = () => {
+    console.log(config.src.imgages)
+    console.log(config.dest.images)
+    src(`${config.src.images}**/*.*`)
+      .pipe(plumber())
+      .pipe(dest(config.dest.images))
+  }
+
+  /**
+   * Concatinate and minify JS files into a single file.
+   */
+  const copyVendor = () => {
+    src(`${config.src.vendor}**/*.*`)
+      .pipe(plumber())
+      .pipe(dest(`${config.dest.vendor}vendor/`))
+  }
+
+  /**
+   * Copy changed vendor files to style-guide vendor folder
+   */
+  const copyUpdatedVendor = (updatedFile) => {
+    console.log('updatedFile:', updatedFile)
+    const sourceDir = updatedFile.replace(/^.*?\/vendor\/(css|js|fonts|images)\/.*$/ig, '$1')
+    console.log('sourceDir:', sourceDir)
+    src(updatedFile)
+      .pipe(plumber())
+      .pipe(dest(`${config.paths.dest}vendor/${sourceDir}/`))
+  }
+
+  /**
+   * delete all the files in the list supplied.
+   */
+  const deleteAll = async () => {
+    await del(filesToDelete)
+  }
+
+  /**
+   * creates a set of watchers for different paths so Scss, JS & HTML
+   */
+  const watcher = () => {
+    // compile and do stuff
+    watch(`${config.src.css}**/*.scss`).on('change', compileSass)
+    watch(`${config.src.css}**/*.scss`).on('change', lintSassFiles)
+    watch(`${config.src.js}**/*.js`).on('change', copyJS)
+    watch(`${config.src.images}**/*.*`).on('change', copyImages)
+    watch(`${config.src.vendor}**/*.*`).on('change', copyUpdatedVendor)
+
+    // Build style-guide
+    watch(`${config.paths.dest}css/*.css`).on('change', compileKss)
+
+    // reload browser when compiled code is written
+    watch(`${config.paths.dest}**/*.css`).on('change', browserSync.reload)
+    watch(`${config.paths.dest}**/*.js`).on('change', browserSync.reload)
+    watch(`${config.paths.dest}**/*.html`).on('change', browserSync.reload)
+  }
+
+  /**
+   * Initialise browserSync
+   *
+   * @param {string} destPath path to digitial standards site.
+   */
+  const browserSyncInit = () => {
+    browserSync.init({
+      notify: false,
+      open: false,
+      server: {
+        baseDir: config.paths.dest
+      }
+    })
+  }
+
+  exports.default = series(deleteAll, parallel(browserSyncInit, watcher, compileSass, copyImages, copyJS, copyVendor))
+
+  //  END:  test mode
+  // ============================================
+}
