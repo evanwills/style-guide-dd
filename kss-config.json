@@ -1,0 +1,11 @@
+{
+  "title": "Style Guide Driven Development",
+  "source": [
+    "./style-guide/css/"
+  ],
+  "destination":  "./style-guide/",
+  "homepage": "src/docs/homepage.md",
+  "builder": "node_modules/michelangelo/kss_styleguide/custom-template",
+  "css": [],
+  "js": []
+}

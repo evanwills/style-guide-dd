@@ -1,0 +1,26 @@
+{
+  "codeLinting": {
+    "css": true,
+    "js": true
+  },
+  "cssPreProcessor": {
+    "config": {
+      "outputStyle": "expanded",
+      "eyeglass": {
+        "enableImportOnce": false
+      }
+    },
+    "type": "sass"
+  },
+  "dest": {
+    "css": "./style-guide/css",
+    "js": "./style-guide/js",
+    "styleGuide": "./style-guide"
+  },
+  "src": {
+    "css": "./src/sass",
+    "js": "./src/js"
+  },
+  "kssConfig": "./kss-config.json",
+  "useTypeScript": false
+}

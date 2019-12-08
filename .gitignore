@@ -1,0 +1,8 @@
+node_modules/*
+src/tmp/*
+style-guide/css/*
+style-guide/js/*
+style-guide/img/*
+style-guide/fonts/*
+style-guide/vendor/*
+build/tmp*
